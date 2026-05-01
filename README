@@ -1,158 +1,26 @@
-CS 214 Spring 2026 - Project IV: Simple Chat Server
-=====================================================
+This archive contains two programs for use on the iLab.
 
-Partners:
-  Partner 1: [Your Name] (NetID: abc123)
-  Partner 2: [Partner Name] (NetID: xyz456)
+client - a sample client demonstrating a possible user agent
+raw - a test client that allows you to send raw protocol messages and 
+      observe the respose from your server
 
----------------------------------------------------------------------------
-Overview
----------------------------------------------------------------------------
-
-chatd is a single-threaded Internet chat server implementing a simple
-application-level protocol over TCP. Clients connect, choose a screen name,
-and may then broadcast messages to all users, send private messages, query
-user statuses, and set their own status. The server supports up to 128
-simultaneous clients.
-
----------------------------------------------------------------------------
-Building
----------------------------------------------------------------------------
-
-    make
-
-Produces two binaries:
-  chatd        - the server
-  test_client  - scripted test client used by the test suite
 
 Usage:
+    client <name> <host> <port>
 
-    ./chatd <port>
+Will connect to the chat server at host:port and attempt to join the chat
+using the given name. (We rely on the server to validate names.)
 
-Run the test suite:
+Once running, client will print incoming messages from the server, using
+formatting and indentation to distinguish (1) messages sent by the
+server itself, (2) private messages from other users, (3) general messages
+sent by other users, and (4) errors sent by the server.
 
-    make test
+To send a regular message, type it and press enter.
 
----------------------------------------------------------------------------
-Design
----------------------------------------------------------------------------
+To set your status, type /<status>
 
-Concurrency model:
-  Single-threaded, using poll() to multiplex I/O across all file descriptors
-  simultaneously (the listening socket plus one fd per connected client).
-  poll() blocks until at least one fd is ready; the server then services each
-  ready fd in turn before calling poll() again. No threads or mutexes are
-  needed because only one thread ever touches shared state.
+To query all users and their statuses, type ?
+To query a specific user, type ?<name>
 
-Protocol parsing — incremental state machine:
-  TCP is a stream protocol; a single read() may return part of a message or
-  multiple messages. Rather than blocking until a full message arrives (which
-  would stall all other clients), each Client struct carries a small state
-  machine with two states:
-
-    ST_HEADER  Read one byte at a time, counting '|' characters, until three
-               have been seen (version, code, and length fields). At that
-               point parse the header, allocate a body buffer of the exact
-               declared size, and transition to ST_BODY.
-
-    ST_BODY    Bulk-read up to the remaining body bytes in one call. When the
-               body is complete, call dispatch() and return to ST_HEADER.
-
-  This design means the server never blocks mid-message waiting for more
-  bytes; it simply returns to poll() and comes back when more data arrives.
-
-Body length field:
-  The spec requires reading exactly the declared number of body bytes and no
-  more, to avoid consuming bytes that belong to the next message. We
-  pre-allocate body_need+1 bytes and pass exactly (body_need - body_got) to
-  read(), so we can never over-read.
-
-Trailing '|' enforcement:
-  After the body is fully received, dispatch() checks that the last byte is
-  '|'. Failure is fatal (ERR 0 + close), as the framing is now unrecoverable.
-
-Error handling:
-  ERR 0 (Unreadable) — fatal; drop_client() is called.
-  ERR 1–4            — recoverable; client stays connected and may retry.
-
-Sender field:
-  For MSG, the sender field supplied by the client is ignored. The server
-  always substitutes the verified screen name from the client struct, so
-  users cannot masquerade as each other.
-
-Client departure:
-  drop_client() closes the fd, frees the body buffer, clears the slot, and
-  — if the client had a name — broadcasts a departure message to all
-  remaining named users.
-
----------------------------------------------------------------------------
-Test Plan
----------------------------------------------------------------------------
-
-We tested using a combination of:
-  1. Automated shell script (test_chatd.sh / "make test")
-  2. Manual interactive testing with netcat
-
---- Automated tests (test_chatd.sh) ---
-
-Test 1: Basic connection and NAM
-  Connect a single client "Alice". Verify the server replies with a MSG
-  containing "Welcome to the chat!".
-
-Test 2: Duplicate screen name rejected
-  Keep Alice connected. Connect a second client that also tries NAM "Alice".
-  Verify the second client receives ERR code 1.
-
-Test 3: SET status broadcast
-  Connect Bob, send SET "Happy today". Verify all connected clients receive
-  a MSG from #all containing "Bob is now".
-
-Test 4: WHO single user with status
-  Connect Alice, SET "I was here first". Connect Bob, send WHO "Alice".
-  Verify Bob's reply from #all contains "I was here first".
-
-Test 5: WHO unknown user
-  Connect Carol, send WHO "nobody". Verify ERR code 2.
-
-Test 6: WHO #all
-  Connect Alice (with status) and Bob (no status). Bob sends WHO "#all".
-  Verify the response lists both names.
-
-Test 7: Illegal characters in name
-  Attempt NAM "bad name!" (contains space and !). Verify ERR code 3.
-
-Test 8: Name too long
-  Attempt NAM with a 33-character name. Verify ERR code 4.
-
---- Manual / interactive tests (netcat) ---
-
-Private messaging:
-  Alice sends MSG to Bob (not #all). Verify only Bob receives it, Carol does not.
-
-Broadcast messaging:
-  Alice sends MSG to #all. Verify all named users receive it.
-
-WHO with no status:
-  User with no SET issues WHO about another user with no status. Verify
-  response is "No status".
-
-Sender masquerade:
-  Client sends MSG with a forged sender field. Verify forwarded message
-  shows the real sender name.
-
-MSG before NAM:
-  Client sends MSG without first sending NAM. Verify ERR Unreadable.
-
-Malformed header (body not ending with '|'):
-  Send a raw message missing the trailing pipe. Verify ERR 0 and close.
-
-Unknown message code:
-  Send code "FOO". Verify ERR 0 and close.
-
-Concurrent I/O (poll test):
-  Connect 10 clients simultaneously, all broadcasting at once. Verify no
-  messages are lost or corrupted (checked by counting received lines).
-
-Disconnect announcement:
-  While two clients are connected, close one. Verify the remaining client
-  receives the departure message.
+To send a private message to a user, type @<name> <message>

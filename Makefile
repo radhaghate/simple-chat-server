@@ -1,20 +1,23 @@
-CC      = gcc
-CFLAGS  = -Wall -Wextra -g
+CC = gcc
+CFLAGS = -Wall -Wextra -Wpedantic -std=c11 -g
+TARGET = chatd
 
-TARGETS = chatd test_client
+all: $(TARGET)
 
-.PHONY: all clean test
+$(TARGET): chatd.c
+	$(CC) $(CFLAGS) -o $(TARGET) chatd.c
 
-all: $(TARGETS)
+test_client: test/test_client.c
+	$(CC) $(CFLAGS) -o test/test_client test/test_client.c
 
-chatd: chatd.c
-	$(CC) $(CFLAGS) -o $@ $<
-
-test_client: test_client.c
-	$(CC) $(CFLAGS) -o $@ $<
-
-test: all
-	bash test_chatd.sh
+test: all test_client
+	chmod +x test/test_chatd.sh
+	./test/test_chatd.sh
 
 clean:
-	rm -f $(TARGETS)
+	rm -f $(TARGET)
+	rm -f test/test_client
+	rm -f *.o
+	rm -f test/*.o
+
+.PHONY: all test clean
