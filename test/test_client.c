@@ -1,16 +1,3 @@
-/*
- * test_client.c - Simple test client for chatd
- *
- * Usage:
- *   ./test_client <host> <port> <name>
- *
- * Then type commands:
- *   MSG <recipient> <message>
- *   WHO <name or #all>
- *   SET <status>
- *   QUIT
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -176,7 +163,6 @@ int main(int argc, char *argv[])
                 snprintf(payload, sizeof(payload), "|%s|%s", recipient, body);
 
                 send_raw("MSG", payload);
-                recv_one();
             } else {
                 printf("[INFO] Usage: MSG <recipient> <message>\n");
             }
@@ -185,7 +171,6 @@ int main(int argc, char *argv[])
             recv_one();
         } else if (strncmp(line, "SET ", 4) == 0) {
             send_raw("SET", line + 4);
-            recv_one();
         } else if (strcmp(line, "QUIT") == 0) {
             break;
         } else {

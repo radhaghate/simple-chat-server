@@ -1,12 +1,3 @@
-/*
- * chatd.c - Simple Internet Chat Server
- * CS 214 Spring 2026 - Project IV
- *
- * Usage: ./chatd <port>
- *
- * Single-threaded server using poll().
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -232,12 +223,6 @@ static int drop_client(int slot)
 {
     Client *c = &clients[slot];
 
-    if (c->fd >= 0 && c->name[0] != '\0') {
-        char msg[128];
-        snprintf(msg, sizeof(msg), "%s has left the chat.", c->name);
-        broadcast(ROOM_NAME, ROOM_NAME, msg, c->fd);
-    }
-
     if (c->fd >= 0) {
         close(c->fd);
     }
@@ -302,8 +287,8 @@ static int dispatch(int slot)
 
     if (strcmp(c->code, "NAM") == 0) {
         if (c->name[0] != '\0') {
-            send_err(c->fd, ERR_UNREADABLE, "Name already set");
-            return 1;
+            send_err(c->fd, ERR_NAME_IN_USE, "Name already set");
+            return 0;
         }
 
         char req[MAX_NAME_LEN + 2];
@@ -712,6 +697,7 @@ int main(int argc, char *argv[])
         clients[i].body = NULL;
     }
 
+    signal(SIGPIPE, SIG_IGN);
     signal(SIGINT, handle_sigint);
     signal(SIGTERM, handle_sigint);
 
@@ -804,3 +790,5 @@ int main(int argc, char *argv[])
     close(lfd);
     return 0;
 }
+
+
