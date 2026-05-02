@@ -19,5 +19,9 @@ clean:
 	rm -f test/test_client
 	rm -f *.o
 	rm -f test/*.o
+	rm -f test/bob_output.txt
+	rm -f test/server_output.txt
+	rm -rf chatd.dSYM
+	rm -rf test/test_client.dSYM
 
-.PHONY: all test clean
+.PHONY: all test clean 

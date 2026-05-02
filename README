@@ -1,26 +1,69 @@
-This archive contains two programs for use on the iLab.
+Project IV: Simple Chat Server (chatd)
+======================================
 
-client - a sample client demonstrating a possible user agent
-raw - a test client that allows you to send raw protocol messages and 
-      observe the respose from your server
+Authors
+-------
+Zeal Shah (NetID: zss37)
+Radha Ghate (NetID: rsg169)
 
+Overview
+--------
+This project implements a simple Internet chat server (`chatd`) using the sockets API and the `poll()` system call to handle multiple clients concurrently. The server allows users to choose a unique screen name, set a status message, send messages to all users (#all) or specific users, and query information.
 
-Usage:
-    client <name> <host> <port>
+The server is single-threaded, uses a state machine for parsing, and strictly follows the protocol specified in the assignment, including proper message formatting, validation, and error handling.
 
-Will connect to the chat server at host:port and attempt to join the chat
-using the given name. (We rely on the server to validate names.)
+Compilation
+-----------
+To compile the server and test client, simply run:
 
-Once running, client will print incoming messages from the server, using
-formatting and indentation to distinguish (1) messages sent by the
-server itself, (2) private messages from other users, (3) general messages
-sent by other users, and (4) errors sent by the server.
+    make all
+    make test_client
 
-To send a regular message, type it and press enter.
+This processes the included source files and produces the following executables/scripts:
+`chatd`: The main server implementation.
+`test_client`: A simple client for testing.
+`test_chatd.sh`: A script to run automated tests.
 
-To set your status, type /<status>
+Running the Server
+------------------
+Start the server by specifying a listening port (e.g., 18088):
 
-To query all users and their statuses, type ?
-To query a specific user, type ?<name>
+    ./chatd 18088
 
-To send a private message to a user, type @<name> <message>
+Testing
+-------
+Run:
+
+    make test
+
+This builds chatd and the test client, starts chatd on port 18088, runs a simple client session, checks NAM registration, WHO #all,
+SET status, and WHO for a named user.
+
+Additional manual testing was performed with multiple instances of test/test_client to check private messages, #all broadcasts, duplicate names, unknown recipients, invalid names/statuses/messages, and malformed input handling.
+
+1.  Terminal 1 (Server):
+    ./chatd 18088
+
+2.  Terminal 2 (Test Suite):
+    ./test_chatd.sh
+
+This runs several test scenarios:
+1.  Basic Functionality: Verifies client connection, `NAM` registration, welcome messages, and appearance in `WHO #all`.
+2.  Multiple Clients: Connects multiple clients simultaneously to ensure `#all` broadcasts and private messages route correctly.
+3.  Status Handling: Uses `SET` to assign statuses, verifies broadcasts on non-empty statuses, and checks `WHO` outputs.
+4.  Error Handling & Edge Cases: Checks for handling of duplicate names (ERR 1), unknown recipients (ERR 2), illegal characters (ERR 3), message too long (ERR 4), and connection closures for malformed input (ERR 0).
+
+Manual Testing
+You can also connect to the chat server interactively using `test_client`.
+
+test_client (Interactive Client)
+Usage: `./test/test_client <host> <port> <name>`
+Connects to the server and allows you to manually send protocol commands to interact with other connected users.
+
+    ./test/test_client 127.0.0.1 18088 Bob
+
+Supported Commands:
+`MSG <recipient> <message>`: Send a message to a specific user or `#all`.
+`WHO <name or #all>`: Query specific user details or everyone online.
+`SET <status>`: Set your status message.
+`QUIT`: Exit the client.
